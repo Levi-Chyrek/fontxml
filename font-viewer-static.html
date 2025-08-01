@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Static Multi-Font Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    select { padding: 0.5em; margin-top: 1em; }
+    #text { margin-top: 2em; font-size: 2em; }
+  </style>
+</head>
+<body>
+
+  <h1>Static XML Font Viewer</h1>
+  <div id="fontControls" style="display:none;">
+    <label for="fontSelect">Choose Font:</label>
+    <select id="fontSelect" onchange="applySelectedFont()"></select>
+  </div>
+  <div id="text" contenteditable="true">אגץ לוי יצחק חן דוד אבשלום אליעזר יוסי עקיבא אברהם משה יהודה טרפון שמעון שלמה רחמים נחמיה אליהו זכריה ישעיהו מיכה יחזקאל הנביאים</div>
+
+  <script>
+    const fontMap = new Map();
+
+    async function loadFonts() {
+      try {
+        const res = await fetch("fonts.xml");
+        const xmlText = await res.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, "application/xml");
+
+        const fonts = xml.querySelectorAll("font");
+        const select = document.getElementById("fontSelect");
+        select.innerHTML = "";
+
+        fonts.forEach(fontNode => {
+          const name = fontNode.querySelector("name").textContent;
+          const format = fontNode.querySelector("format").textContent;
+          const base64 = fontNode.querySelector("data").textContent;
+
+          const binary = atob(base64);
+          const buffer = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            buffer[i] = binary.charCodeAt(i);
+          }
+
+          fontMap.set(name, { format, buffer });
+
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          select.appendChild(option);
+        });
+
+        if (fonts.length > 0) {
+          document.getElementById("fontControls").style.display = "block";
+          applySelectedFont();
+        } else {
+          document.getElementById("text").textContent = "No fonts found in XML.";
+        }
+
+      } catch (err) {
+        document.getElementById("text").textContent = "Error loading fonts.xml.";
+        console.error(err);
+      }
+    }
+
+    async function applySelectedFont() {
+      const name = document.getElementById("fontSelect").value;
+      const { buffer } = fontMap.get(name);
+      const font = new FontFace(name, buffer);
+      await font.load();
+      document.fonts.add(font);
+      document.getElementById("text").style.fontFamily = name;
+    }
+
+    // Load fonts automatically on page load
+    loadFonts();
+  </script>
+
+</body>
+</html>
